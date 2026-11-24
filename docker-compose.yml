@@ -1,0 +1,73 @@
+services:
+  mongodb:
+    image: mongo:9.0.4
+    ports:
+      - "27017:27017"
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PW}
+    volumes:
+      - mongo-data:/data/db
+    restart: ${RESTART}
+    networks:
+      - ignition-net
+    
+
+  flask-app:
+    build: ./flask
+    image: flask-api:${IMAGE_TAG}
+    ports:
+      - "5005:5000"
+    container_name: flask-api
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_DEBUG=1
+      - MONGO_USER=${MONGO_USER}
+      - MONGO_PW=${MONGO_PW}
+    volumes:
+      - ./flask:/app # This allows for code reloading during development
+    restart: ${RESTART}
+    networks:
+      - ignition-net
+
+  ignition:
+    image: inductiveautomation/ignition:8.3.10
+    container_name: BirchfieldCoal
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./ignition/ignition-data:/usr/local/bin/ignition/data
+      - ./ignition/ignition-backup:/usr/local/bin/ignition/data/backups
+      - ./ignition/ignition-logs:/usr/local/bin/ignition/logs
+      - ./ignition/ignition-restore/backup.gwbk:/restore.gwbk:ro
+    networks:
+      - ignition-net
+    command: >
+      -n Birchfield-Coal
+      -r /restore.gwbk
+    environment:
+      - ACCEPT_IGNITION_EULA=Y
+      - GATEWAY_ADMIN_USERNAME=${PROLEC_USER}
+      - GATEWAY_ADMIN_PASSWORD=${PROLEC_PW}
+      - IGNITION_EDITION=edge
+      - TZ=Pacific/Auckland
+      - IGNITION_UID=(UID 2003) # Match host or container UID needed for write access
+      - IGNITION_GID=(GID 2003) # Match host or container GID needed for write access
+    restart: ${RESTART}
+    
+
+volumes:
+  mongo-data:
+  ignition-backup:
+  ignition-logs:
+  ignition-restore:
+  ignition-data:
+  ignition-projects:
+  ignition-resources:
+
+networks:
+  ignition-net:
+    driver: bridge
+
+  
